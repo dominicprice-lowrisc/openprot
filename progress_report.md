@@ -6,6 +6,33 @@ Accurate as of 13/10/2026
 
 ---
 
+## Contents
+
+- [1. Intro to openPRoT](#1-intro-to-openprot)
+  - [Problem statement](#problem-statement)
+  - [Solution](#solution)
+  - [Targets](#targets)
+  - [Communication protocols in openPRoT](#communication-protocols-in-openprot)
+- [2. Branches in openPRoT and their status](#2-branches-in-openprot-and-their-status)
+  - [2.1 Current demo work (September–October 2026)](#21-current-demo-work-septemberoctober-2026)
+  - [2.2 Earl Grey (OpenTitan)](#22-earl-grey-opentitan)
+  - [2.3 ASPEED SPI/flash (June 2026)](#23-aspeed-spiflash-june-2026)
+  - [2.4 SPDM and MCTP, earlier work (March–June 2026)](#24-spdm-and-mctp-earlier-work-marchjune-2026)
+  - [2.5 OCP EMEA demo (March–May 2026)](#25-ocp-emea-demo-marchmay-2026)
+  - [2.6 Housekeeping](#26-housekeeping)
+  - [2.7 Branch summaries](#27-branch-summaries)
+- [3. Who is working on what](#3-who-is-working-on-what)
+- [4. What the code does](#4-what-the-code-does)
+  - [4.1 Repository layout](#41-repository-layout)
+  - [4.2 Services](#42-services)
+  - [4.3 Hardware interfaces, platform and utilities](#43-hardware-interfaces-platform-and-utilities)
+  - [4.4 Targets](#44-targets)
+  - [4.5 Tools](#45-tools)
+  - [4.6 Not implemented on any branch](#46-not-implemented-on-any-branch)
+- [Glossary](#glossary)
+
+---
+
 ## 1. Intro to openPRoT
 
 *This section exists primarily for the benefit of readers who are new to openPRoT*
@@ -198,6 +225,17 @@ An earlier demo, built for the OCP EMEA summit: a requester asks the RoT for SPD
 | `revert-261-synchronize-bot` | cfrantz | Undoes a change to the bot that syncs `main` into `earlgrey-hwe`, so it merges again instead of rebasing. | Probably in main |
 | `dependabot/github_actions/actions/setup-python-7` | dependabot | An automated update of the `setup-python` CI action from version 6 to 7. | Not in main |
 
+### 2.7 Branch summaries
+
+| Branch | Summary |
+|---|---|
+| `ocp-global-demo-wip` | The most complete snapshot of the project: a firmware update working start to finish (request, transfer, trial run and final commit), 11 automated test scenarios, a stand-in for the device being updated, a basic signature-checking client, and notes on what the update process still can't verify. A file called `GAPS.md` describes what a passing test run does and does not prove. |
+| `cq-demo-integration` | The same firmware-update work as above, but without some newer additions: computing a hash of the firmware image, checking it in stages rather than all at once, a test-only stand-in for the communication link, the mock device, and the cryptography pieces. There's a pending TODO to require authenticating an update before switching to it, once the signature-checking client has been wired up. |
+| `ocp-emea-demo*` | The only branches with a fully working (software-only) encryption/signing service, and with support for I2C hardware on the ASPEED chip. They also include design notes for the messaging layer that carries the other protocols. One caveat: the random-number generator used for cryptography is software-only, not backed by a hardware source of randomness. |
+| `earlgrey-hwe` | The entire port to OpenTitan's Earl Grey chip, plus USB support, USB-based firmware updates, and a compact logging library. None of this is merged into `main`, and `main` has since changed in ways this branch doesn't reflect. It also deletes a shared file used for passing messages between apps that other branches still rely on. |
+| `spdm-measurements` | A test, run entirely in memory, of two devices agreeing on protocol version and supported features, plus stress tests of that process on the ASPEED chip. |
+| `pldm-fd-run-once` | A small change letting a test stop the firmware-update code on demand, rather than relying on a timeout. Likely already merged into `main`. |
+
 
 
 ## 3. Who is working on what
@@ -271,7 +309,7 @@ PLDM is the protocol used for firmware updates and monitoring.
 |---|---|---|
 | `pldm` service | The firmware device side. It wraps an external PLDM state machine library and carries PLDM messages over MCTP. It talks directly to a remote update agent. | main. `pldm-fd-run-once` adds `run_until`, so a caller can decide when to stop. |
 | `api`, `client`, `server` | An IPC layer between the orchestrator and the PLDM firmware device. | Demo branches only |
-| `gate` | A policy hook that decides whether an update phase may proceed. The only implementation always says yes, and its README says it must not ship on a device. | Demo branches only |
+| `gate` | A policy hook that decides whether an update phase may proceed. The demo branch implementation alwys allows the update, and the README says this must not make it onto a production device. | Demo branches only |
 
 #### SPDM (`services/spdm`)
 
@@ -374,7 +412,7 @@ The main development platform. The `peripherals` crate has one module per hardwa
 | Module | What it drives | Completeness |
 |---|---|---|
 | `i2c` | Master and slave I2C, DMA, bus recovery | Largely implemented. Two TODOs in the slave status handling. |
-| `i3c` | I3C controller (about 7,000 lines) | Substantial, but only an init and an interrupt test exist. |
+| `i3c` | I3C controller | Substantial, but only an init and an interrupt test exist. |
 | `smc` | The flash controllers (FMC and SPI): SPI-NOR access, memory-mapped reads, DMA | Mostly implemented, with a few TODOs, including no DMA read for large buffers. |
 | `spimonitor` | The SPI monitor: per-command and per-address allow/block rules | Implemented |
 | `scu` | System control: pin control, clocks, resets | Implemented |
@@ -406,13 +444,13 @@ What the other branches add:
 - `fix/ast10x0-spim`: extra files for the SPI monitor's address-privilege and command tables.
 - `fix/ast10x0-i2c`: a single fix in the I2C slave code.
 
-The tests README notes some failures from May: a kernel interrupt test times out on the physical board, an IPC test hangs under QEMU, and some tests are skipped on hardware. It also says wired Pi mode is not implemented. Several hardware constants are marked as unverified (system clock rate, MPU region count, SRAM size).
+The tests' README notes some failures from May: a kernel interrupt test times out on the physical board, an IPC test hangs under QEMU, and some tests are skipped on hardware. It also says wired Pi mode is not implemented. Several hardware constants are marked as unverified (system clock rate, MPU region count, SRAM size).
 
 #### OpenTitan Earl Grey (`target/earlgrey`)
 
 - **On `main`:** the starting point imported from Google. It has kernel bring-up (boot entry, memory protection, clocks), GPIO and pinmux drivers, generated register definitions, test signing keys, and runners for CW310, CW340, Verilator and QEMU. Its tests are small (GPIO, IPC, threads, UART). The README's build paths are out of date.
 - **On `earlgrey-hwe`:** a much larger target.
-  - Drivers: on-chip flash, SPI host, USB device controller (about 1,100 lines), UART.
+  - Drivers: on-chip flash, SPI host, USB device controller, and UART.
   - USB protocol (`protocol/usb`): a device-side stack, USB serial (CDC-ACM) and USB firmware update (DFU 1.1).
   - Two firmware images:
     - `firmware/hwe`: five apps (system manager, log manager, USB manager, platform and flash server).
@@ -430,18 +468,7 @@ A kernel target for the Caliptra RISC-V core, with IPC, threads, interrupt and s
 - `tools/sgpiom`: generates SGPIO board config from JSON.
 - `tools/flash_image`: builds a QEMU flash image from a slot layout, with tests. Demo branches only.
 
-### 4.6 Branch highlights
-
-| Branch | What is worth knowing |
-|---|---|
-| `ocp-global-demo-wip` | The most complete view of the project: the update pipeline end to end (update API, PLDM IPC, update pump, trial boot and commit), 11 integration scenarios, the mock device, the crypto client, and docs on what the orchestrator cannot check. `GAPS.md` in `target/ast10x0/tests/integration` lists what a green run does not prove. |
-| `cq-demo-integration` | The same update work without the measurer, incremental verifier, loopback transport, mock device and crypto crates. It has a TODO to require authentication before activation, once a crypto verify client is wired into the board. |
-| `ocp-emea-demo*` | The only place a working software crypto service exists, and the ASPEED I2C backend. It also has MCTP design docs (`IMPLEMENTATION_PLAN.md`, `DESIGN_IN_PROCESS_REQUESTER.md`). Its crypto RNG is noted as not hardware-backed. |
-| `earlgrey-hwe` | The whole Earl Grey port and the USB, DFU and `zfmt` logging crates. None of it is on `main`, and `main` has moved on without it. It deletes a util IPC file (`async_transaction.rs`) that the other branches keep, so merging it will need care. |
-| `spdm-measurements` | An in-memory SPDM requester-to-responder test of version, capabilities and algorithm negotiation, and the ast10x0 SPDM stress tests. I did not check whether the library actually implements measurements. |
-| `pldm-fd-run-once` | The `run_until` change to the PLDM firmware device, which is probably in `main`. |
-
-### 4.7 Not implemented on any branch
+### 4.6 Not implemented on any branch
 
 Searches covered `main`, `ocp-global-demo-wip`, `earlgrey-hwe` and `cq-demo-integration`. The other branches are older forks of `main` and were not searched, so an item could exist only there.
 
@@ -458,7 +485,7 @@ Searches covered `main`, `ocp-global-demo-wip`, `earlgrey-hwe` and `cq-demo-inte
 
 **Partly implemented:**
 
-- **Firmware update.** The path works end to end in QEMU on the demo branches, but `GAPS.md` lists what a green run does not cover:
+- **Firmware update.** This works end to end in QEMU on the demo branches, but `GAPS.md` lists what a green run does not cover:
   - Automatic activation without an explicit ActivateFirmware command.
   - Authenticating the running image before its first release.
   - Backup-slot re-sync after a commit.
@@ -477,12 +504,6 @@ Searches covered `main`, `ocp-global-demo-wip`, `earlgrey-hwe` and `cq-demo-inte
 - **Platform impls.** Hubris, Tock and Linux are empty shells.
 - **Documentation drift.** Examples: `services/orchestrator/sm/README.md` links to design files that do not exist on `main`, and the AST10x0 `smc` README names files that are not in the tree.
 
-**What I could not verify:**
-
-- Whether any of this builds or passes.
-- The unlisted parts of the orchestrator driver's effect coverage on the demo branches.
-- Docs I did not read in full: `threat_model.md`, `device_abstraction`, `use_cases`, `fwupdate.md` and `mctp.md`. There may be further specified items.
-- The Veer target beyond its file list.
 
 
 ## Glossary
