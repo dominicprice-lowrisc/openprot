@@ -29,6 +29,13 @@ Accurate as of 13/10/2026
   - [4.4 Targets](#44-targets)
   - [4.5 Tools](#45-tools)
   - [4.6 Not implemented on any branch](#46-not-implemented-on-any-branch)
+- [5. GitHub milestones versus actual progress](#5-github-milestones-versus-actual-progress)
+  - [5.1 Specification v0.5](#51-specification-v05)
+  - [5.2 Infrastructure v0.1](#52-infrastructure-v01)
+  - [5.3 M1.0 target/earlgrey - HW Integration Ready](#53-m10-targetearlgrey---hw-integration-ready)
+  - [5.4 M2.0 target/earlgrey - TPM 2.0 Interface](#54-m20-targetearlgrey---tpm-20-interface)
+  - [5.5 M3.0 target/earlgrey - First Instruction Integrity](#55-m30-targetearlgrey---first-instruction-integrity)
+- [6. Summary](#6-summary)
 - [Glossary](#glossary)
 
 ---
@@ -39,7 +46,7 @@ Accurate as of 13/10/2026
 
 ### Problem statement
 
-Firmware runs at the bottom of the software stack, interacting directly with the hardware. A computer or server may have several microprocessors each controlling a device (such as a network card) that is attached to the motherboard. How can we verify that it has not been tampered with by an attacker?
+Firmware runs at the bottom of the software stack, interacting directly with the hardware. A computer or server may have several microprocessors each controlling a separate device (such as a network card). How can we verify that it has not been tampered with by an attacker?
 
 A **Platform Root of Trust (PRoT)** is a small, dedicated security chip on the motherboard that guards against this. For example, it may
 
@@ -48,11 +55,11 @@ A **Platform Root of Trust (PRoT)** is a small, dedicated security chip on the m
 - Providing attestation: a remote party can ask what firmware the chip is running and get an answer it can trust.
 - Monitoring hardware. For example, watching the traffic on the flash chips that hold other devices' firmware.
 
-docs/src/specification/services/(firmwareupdate|attestation).md respectively provide more detail on those two bullet points.
+`docs/src/specification/services/fwupdate.md` and `docs/src/specification/services/attestation.md` provide more detail on those two bullet points, respectively.
 
 ### Solution
 
-**openPRoT** is an rust-based open-source firmware stack. The aim is a shared, auditable, vendor-neutral implementation that hardware makers can adopt, rather than each vendor writing its own closed one.
+**openPRoT** is a Rust-based open-source firmware stack. The aim is a shared, auditable, vendor-neutral implementation that hardware makers can adopt, rather than each vendor writing its own closed one.
 
 
 | Layer | Description | Source |
@@ -68,7 +75,7 @@ docs/src/specification/services/(firmwareupdate|attestation).md respectively pro
 
 | Target | What it is | Status | Source |
 |---|---|---|---|
-| **ASPEED AST1060 / AST10x0** | A commercial RoT chip used on real server boards | Main development and demo platform. OpenPRoT examples support the AST1060 Test Harness board. Customer EVB for the AST1060 is not specifically supported at this time. There is also emulation support via QEMU. | `target/ast10x0`, `target/ast10x0/BOARDS.md`, `target/ast10x0/README.md` |
+| **ASPEED AST1060 / AST10x0** | A commercial RoT chip used on real server boards | Main development and demo platform. openPRoT examples support the AST1060 Test Harness board. Customer EVB for the AST1060 is not specifically supported at this time. There is also emulation support via QEMU. | `target/ast10x0`, `target/ast10x0/BOARDS.md`, `target/ast10x0/README.md` |
 | **OpenTitan Earl Grey** | An open-source silicon root of trust | Substantial work on a separate branch. There is an example project of the Pigweed kernel running on this chip. Has CW310, CW340, Verilator and QEMU runners | `target/earlgrey/README.md` |
 | **Caliptra / VeeR** | An open-source RoT core, run in an emulator or on an FPGA (the latter is tagged as manual). | Basic support | `target/veer/caliptra_emulator_main.rs`, `target/veer/workflow.json` |
 
@@ -79,12 +86,12 @@ The RoT has to communicate with the devices it protects. openPRoT uses the follo
 
 | Protocol | Description / use case | Source |
 |---|---|---|
-| SPDM (Security Protocol and Data Model) | Authenticating the device and the firmware it is running (attestation, secure sessions). |
-| PLDM (Platform Level Data Model) | Firmware updates and platform monitoring. |
+| SPDM (Security Protocol and Data Model) | Authenticating the device and the firmware it is running (attestation, secure sessions). | `services/spdm/` |
+| PLDM (Platform Level Data Model) | Firmware updates and platform monitoring. | `services/pldm/` |
 | MCTP (Management Component Transport Protocol) | The message transport that carries all DMTF protocols. There is a Rust crate implementing MCTP-over-I2C. | `services/mctp/transport-i2c/README.md` |
-| I2C / I3C | The bus between chips |
+| I2C / I3C | The bus between chips | |
 
-The three software protocols (SPDM, PLDM, MCTP) are documented in `docs/src/design/specification/middleware`. They all fall under the DMTF standards.
+The three software protocols (SPDM, PLDM, MCTP) are documented in `docs/src/specification/middleware/`. They all fall under the DMTF standards.
 
 Most of the past year's work has been building this stack: the I2C driver, MCTP, SPDM, PLDM, and the orchestrator that uses them.
 
@@ -92,7 +99,7 @@ Most of the past year's work has been building this stack: the I2C driver, MCTP,
 |---|---|---|---|
 | HAL I2C traits | `c9baf8b` | 2025-07-31 | I2C target traits |
 | MCTP service | `0a4807d` | 2026-04-28 | services/mctp/api: add MCTP API crate with unit tests |
-| ast10x0 I2C peripheral and tests | `3e1bb75` | 2026-05-12 | Add i2c peripheral to the ast10x0 peripheral crate |
+| AST10x0 I2C peripheral and tests | `3e1bb75` | 2026-05-12 | Add i2c peripheral to the ast10x0 peripheral crate |
 | SPDM service | `ca66cc6` | 2026-05-20 | Add transport-mctp for SPDM |
 | PLDM service | `ab4cf00` | 2026-05-20 | Add pldm test and service which leverages pldm-lib for firwmare device access from update agent. |
 | I2C service | `37d804e` | 2026-06-02 | i2c |
@@ -136,7 +143,7 @@ These four branches are stacked: each contains the one before it. Together they 
     - After a new image proves itself, the spare slot is brought up to date so the fallback is not left on the old version. Only then is the anti-rollback floor raised.
 - **Design decision:** the spare slot is updated by sending the image a second time, not by copying between slots, because copying needs a way to name slots that does not exist yet. The cost is a second full transfer. Devices that track their own version skip this step.
 
-#### `ocp-global-demo`: 141 commits ahead (Christina Quast 71, JesseMelon 54, Anthony Rocha 15)
+#### `ocp-global-demo`: 141 commits ahead (Christina Quast 71, JesseMelon 54, Anthony Rocha 15, Chris Frantz 1)
 
 - **Purpose:** the Raspberry Pi-driven OCP global demo. A mock baseboard management chip (BMC) receives a firmware update through the RoT and boots it.
 - **Implemented (mostly JesseMelon):**
@@ -146,7 +153,7 @@ These four branches are stacked: each contains the one before it. Together they 
   - **Running from the Pi:** the demo can be deployed and run from a Raspberry Pi, with a terminal dashboard (tmux) and tidied log output.
 - **Anthony Rocha:** shrank the firmware update images to fit under 640 KiB.
 
-#### `ocp-global-demo-wip`: 157 commits ahead (Christina Quast 109, JesseMelon 34, Anthony Rocha 13)
+#### `ocp-global-demo-wip`: 157 commits ahead (Christina Quast 109, JesseMelon 34, Anthony Rocha 13, Chris Frantz 1)
 
 - **Purpose:** the integration and testing branch for the demo.
 - **Implemented (mostly Christina Quast):**
@@ -259,7 +266,7 @@ An earlier demo, built for the OCP EMEA summit: a requester asks the RoT for SPD
 
 ## 4. What the code does
 
-This section describes the repository at the level of crates and modules. It describes `main` first, followed by describing the major differences that may exist on other branches. Finally, it describes features yet to be implemented on any branch.
+This section describes the repository at the level of crates and modules. It describes `main` first, then the major differences that may exist on other branches. Finally, it describes features yet to be implemented on any branch.
 
 - **main:** the shared baseline.
 - **demo branches:** `ocp-global-demo-wip`, which contains `ocp-global-demo`, `i2c-mctp-throughput` and `cq-demo-integration`, with a few exceptions noted below. These are only 2 commits behind `main`.
@@ -309,7 +316,7 @@ PLDM is the protocol used for firmware updates and monitoring.
 |---|---|---|
 | `pldm` service | The firmware device side. It wraps an external PLDM state machine library and carries PLDM messages over MCTP. It talks directly to a remote update agent. | main. `pldm-fd-run-once` adds `run_until`, so a caller can decide when to stop. |
 | `api`, `client`, `server` | An IPC layer between the orchestrator and the PLDM firmware device. | Demo branches only |
-| `gate` | A policy hook that decides whether an update phase may proceed. The demo branch implementation alwys allows the update, and the README says this must not make it onto a production device. | Demo branches only |
+| `gate` | A policy hook that decides whether an update phase may proceed. The demo branch implementation always allows the update, and the README says this must not make it onto a production device. | Demo branches only |
 
 #### SPDM (`services/spdm`)
 
@@ -365,9 +372,10 @@ A service so that many apps can share the I2C bus.
 
 - `hal/blocking`: the main interface crate. It has one module per area: digest (hashing), mac, cipher, ecdsa, key vault, GPIO ports, I2C hardware and device, and system control. These are traits with documentation, not hardware code. It also holds the `Flash` and `FlashDriver` traits.
 - `hal/nb`: non-blocking I2C traits, including interrupt-driven slave mode.
-- `hal/async`: a re-export of the standard async embedded interface, with nothing OpenPRoT-specific.
+- `hal/async`: a re-export of the standard async embedded interface, with nothing openPRoT-specific.
 - On the demo branches, `hal/src` is a new crate for hardware-neutral vocabulary (field muxing, GPIO, I2C command words, resource tokens). It needs the nightly Rust compiler.
 - On `earlgrey-hwe`, `hal/blocking/usb` adds USB descriptor and device traits.
+
 
 #### Platform (`platform/`)
 
@@ -444,7 +452,7 @@ What the other branches add:
 - `fix/ast10x0-spim`: extra files for the SPI monitor's address-privilege and command tables.
 - `fix/ast10x0-i2c`: a single fix in the I2C slave code.
 
-The tests' README notes some failures from May: a kernel interrupt test times out on the physical board, an IPC test hangs under QEMU, and some tests are skipped on hardware. It also says wired Pi mode is not implemented. Several hardware constants are marked as unverified (system clock rate, MPU region count, SRAM size).
+The tests README notes some failures from May: a kernel interrupt test times out on the physical board, an IPC test hangs under QEMU, and some tests are skipped on hardware. It also says wired Pi mode is not implemented. Several hardware constants are marked as unverified (system clock rate, MPU region count, SRAM size).
 
 #### OpenTitan Earl Grey (`target/earlgrey`)
 
@@ -506,6 +514,123 @@ Searches covered `main`, `ocp-global-demo-wip`, `earlgrey-hwe` and `cq-demo-inte
 
 
 
+## 5. GitHub milestones versus actual progress
+
+The project tracks work in five [GitHub milestones](https://github.com/OpenPRoT/openprot/milestones), all currently open. A milestone's percent-complete on GitHub only counts issues that have been formally closed, which can understate real progress: the Earl Grey driver work below, for example, mostly lives on the unmerged `earlgrey-hwe` branch, so GitHub shows little movement even where the code itself is substantial.
+
+For each open issue, this section checked whether anything addressing it already exists in the code or docs, on any of the 28 branches, not just `main`. As with section 4, this was done by reading file trees and file contents, not by building or running anything, so "Done" below means "a real implementation/doc exists", not "tested and verified working".
+
+### 5.1 Specification v0.5
+
+All 10 issues in this milestone are open; none are closed.
+
+Nearly everything here already has a home in `docs/src/specification/`; the issues mostly track splitting and finishing that content rather than starting from nothing.
+
+| Issue | Status | Notes |
+|---|---|---|
+| [#51](https://github.com/OpenPRoT/openprot/issues/51) Attestation | Done | `docs/src/specification/services/attestation.md` is 680 lines, covering scope, the SPDM requester/responder roles, a local verifier, and evidence formats. The most complete doc of the ten. |
+| [#46](https://github.com/OpenPRoT/openprot/issues/46) High level architecture and block diagram | Done | `docs/src/specification/README.md` has a real block diagram (`openprot_diagram.svg`) and describes five architectural layers. A second, more repo-oriented doc, `docs/src/architecture.md`, covers the directory/build-system view. |
+| [#45](https://github.com/OpenPRoT/openprot/issues/45) Industry standards and specifications section | Done | Same README lists specific DMTF, TCG and NIST document numbers (e.g. SPDM's DSP0274), backed by three detailed protocol docs: `docs/src/specification/middleware/{spdm,mctp,pldm}.md`. |
+| [#44](https://github.com/OpenPRoT/openprot/issues/44) Goals | Done | A concrete bulleted list in `docs/src/specification/README.md` (write an OCP spec, build an open-source reference implementation, standardise hardware interfaces, etc.). |
+| [#43](https://github.com/OpenPRoT/openprot/issues/43) Background Section | Done | A real paragraph in the same README explaining the motivation (avoiding vendor lock-in and supply-chain risk). |
+| [#50](https://github.com/OpenPRoT/openprot/issues/50) Finalize high level markdown doc | Mostly done | That same README already combines the intro, background, goals, standards and architecture into one document, but is still tagged "v0.5 - Work in Progress". |
+| [#42](https://github.com/OpenPRoT/openprot/issues/42) Threat Model Definition | Partial | `docs/src/specification/threat_model.md` defines the assets and attacker profile (using the JIL smartcard attack-potential framework), but explicitly leaves the actual threat/mitigation table as a template for integrators to fill in. Some demo branches add an informal `docs/src/design/trust-boundaries.md` that defers to this file for the real analysis. |
+| [#47](https://github.com/OpenPRoT/openprot/issues/47) Firmware Resiliency section | Partial / mostly stub | `docs/src/specification/firmware_resiliency.md` has three paragraphs of background on NIST SP 800-193, but its two actual content sections, "PRoT Resiliency" and "Connected Device Resiliency", each just say "TBD". |
+| [#49](https://github.com/OpenPRoT/openprot/issues/49) Secure Boot | Not started | `docs/src/specification/services/README.md` lists "Secure Boot (TBD)" with no linked page, and secure boot gets one passing mention in the architecture section. No dedicated doc exists on any branch. |
+| [#48](https://github.com/OpenPRoT/openprot/issues/48) Firmware Recovery | Not started | Same services README lists "Firmware Recovery (TBD)"; no `firmware_recovery.md`-type file exists on any of the 28 branches. |
+
+### 5.2 Infrastructure v0.1
+
+8 issues are open, 4 are closed.
+
+The four closed issues (remove the release workflow, remove the nightly Rust toolchain from CI, convert the build to Bazel, establish coding style standards) all match the repo's current state: it builds with Bazel only, and there's no release workflow.
+
+| Issue | Status | Notes |
+|---|---|---|
+| [#98](https://github.com/OpenPRoT/openprot/issues/98) Document high-level repository structure | Done | `docs/src/architecture.md` already covers this: the `hal/`/`platform/traits`/`platform/impls` split, `drivers/`, `services/`, per-target directories, and how a reference firmware image is assembled. |
+| [#96](https://github.com/OpenPRoT/openprot/issues/96) Create a continuous integration system | Mostly done | `.github/workflows/ci.yml` runs on every pull request: formatting and license checks, a C/C++ header check, Clippy (Rust's linter), a test job, a build job, and a separate security-audit job (dependency and static-analysis scanning). A separate test configuration already excludes hardware/simulator-tagged tests from the normal run, i.e. general and hardware-dependent tests are already split, which is what the issue asks for. |
+| [#222](https://github.com/OpenPRoT/openprot/issues/222) Bazel test execution scaffolding | Partial | Separate tagged test groups already exist for the Earl Grey Verilator simulator and the Caliptra emulator, plus a build-only (not run) target for the Caliptra FPGA board, which needs physical hardware. CI runs on what looks like a dedicated runner. No evidence yet of the FPGA/silicon tests actually executing in CI, or of documented workstation setup for hardware test rigs. |
+| [#115](https://github.com/OpenPRoT/openprot/issues/115) Execute heavyweight tests in the nightly workflow | Partial | A nightly workflow exists and runs on a schedule, excluding only hardware and explicitly-disabled tests — so it's broader than the normal PR run. It's unclear whether it specifically invokes the heavyweight Earl Grey Verilator suite mentioned in the issue, or just runs everything else by tag. |
+| [#94](https://github.com/OpenPRoT/openprot/issues/94) Establish review and committing procedures | Partial | `CONTRIBUTING.md` and `docs/src/development-process.md` already define a process: small vs. large changes, an RFC step needing Technical Steering Committee approval for large ones, and a fork-and-PR flow where CI must pass. There's no `CODEOWNERS` file, and no documented way to override a failing CI check. |
+| [#97](https://github.com/OpenPRoT/openprot/issues/97) Create codebase automation | Partial | The old `xtask` automation this issue asks to evaluate has already been removed (no trace of it on any branch). Automation now runs through Pigweed's `pw` launcher and a Bazel-based test/lint/presubmit configuration. No Bazel rules for test-coverage or binary-size reports were found, so that half of the issue looks untouched. |
+| [#95](https://github.com/OpenPRoT/openprot/issues/95) Establish a release process | Not started | No release workflow exists (removed per the closed #114), no documented tagging convention, and no mention of handling signed binaries. The one git tag present doesn't follow the naming scheme the issue proposes. |
+| [#120](https://github.com/OpenPRoT/openprot/issues/120) Integrate rust_doc builds with mdbook builds | Not started | The docs site is an mdbook book (`docs/book.toml`) deployed via its own workflow, but there's no sign anywhere of Rust's generated API documentation (rustdoc) being built or linked into it. |
+
+### 5.3 M1.0 target/earlgrey - HW Integration Ready
+
+12 issues are open, 1 is closed.
+
+The milestone's goal is "an initial Earl Grey target able to support USB firmware update, GPIO configuration, reset sequencing and console test commands." The closed issue is Kernel bring-up. All the open-issue progress below sits entirely on the unmerged `earlgrey-hwe` branch, not in `main`.
+
+| Issue | Status | Notes |
+|---|---|---|
+| [#179](https://github.com/OpenPRoT/openprot/issues/179) drivers/usb | Done | `target/earlgrey/drivers/usb_driver.rs` is a substantial USB device-controller driver, underpinning both a USB serial connection and the firmware-update protocol below. Has extensive test coverage. |
+| [#180](https://github.com/OpenPRoT/openprot/issues/180) drivers/eflash | Done | `target/earlgrey/drivers/eflash_driver.rs` wraps the chip's own flash controller with a read/write/erase permissions model, used by both firmware images and tested. |
+| [#181](https://github.com/OpenPRoT/openprot/issues/181) drivers/gpio | Done | Builds on the GPIO driver already on `main`, adding interrupt support used by the reset-sequencing logic below. Has its own test. |
+| [#182](https://github.com/OpenPRoT/openprot/issues/182) drivers/retram | Done | `target/earlgrey/util/ret_ram.rs` maps out "retention RAM" (a small amount of memory that survives a chip reset) to hold the boot log and reset reason, and is actively used to persist that state across resets. |
+| [#187](https://github.com/OpenPRoT/openprot/issues/187) Implement and integrate precise errors | Done | A shared error-code crate (a module name plus a code, packed into 32 bits) is used pervasively across the GPIO, SPI and flash driver. |
+| [#188](https://github.com/OpenPRoT/openprot/issues/188) DFU device update | Done | A generic USB firmware-update (DFU) protocol implementation, plus Earl Grey-specific logic that flashes images and hands over the chip's signing-key ownership to a new owner. Also has host-side test tooling. |
+| [#189](https://github.com/OpenPRoT/openprot/issues/189) Supervisor task | Done | A "system manager" service serves boot information over IPC and handles reboot requests by writing the hardware reset controller directly (addresses "boot services and RoT resets"). |
+| [#190](https://github.com/OpenPRoT/openprot/issues/190) Platform integration task | Done | A platform service reads the hardware configuration pins ("straps") sampled at boot, drives the chip's SPI/USB routing switches, and runs a full reset-sequencing state machine. Documented in its own README. |
+| [#221](https://github.com/OpenPRoT/openprot/issues/221) drivers/spi_host | Done | `target/earlgrey/drivers/spi_host.rs` is a working SPI driver using Rust's standard embedded-hardware interface, with its own tests. The same driver also covers milestone 5's duplicate #201 below. |
+| [#186](https://github.com/OpenPRoT/openprot/issues/186) UART console integration | Partial | A working serial console backend exists and is wired into logging, with a loopback test, but there's no interactive command shell — "console test commands" appears to mean automated test-harness commands rather than a user-facing shell, so this may be less complete than the milestone text implies. |
+| [#183](https://github.com/OpenPRoT/openprot/issues/183) drivers/sysctrl | Partial | Register definitions exist for the reset, clock and power managers, but only the reset manager is actually used by any code. The clock and power manager look like auto-generated skeletons with no driver logic written on top yet. |
+| [#184](https://github.com/OpenPRoT/openprot/issues/184) drivers/spidev | Not started | Only auto-generated register definitions and a software test mock exist; no real driver for the chip acting as an SPI peripheral (e.g. emulating an EEPROM) was found. |
+
+### 5.4 M2.0 target/earlgrey - TPM 2.0 Interface
+
+All 10 issues in this milestone are open; none are closed.
+
+This milestone covers adding support for a TPM (Trusted Platform Module, an industry-standard security chip interface) to Earl Grey. Searching all 28 branches found no real TPM implementation work anywhere — every issue below is not started.
+
+| Issue | Notes |
+|---|---|
+| [#191](https://github.com/OpenPRoT/openprot/issues/191) Investigate SPI-TPM transport | A design-level description of a "TPM Admissible Architecture" and diagram already exist in `docs/src/specification/use_cases/`, but this looks like it predates the milestone rather than being a result of it, and there's no written investigation. |
+| [#193](https://github.com/OpenPRoT/openprot/issues/193) Implement TPM physical transport | OpenTitan's auto-generated chip register definitions already expose TPM-mode hardware registers (the SPI-device peripheral can operate in a TPM mode), but no driver code uses them. |
+| [#198](https://github.com/OpenPRoT/openprot/issues/198) TPM SVN integration | No TPM-specific code, but `main` has a generic anti-rollback version-floor mechanism (built for the unrelated AST10x0 target) that could plausibly be adapted later. |
+| [#192](https://github.com/OpenPRoT/openprot/issues/192) Integrate TCG-TPM | Nothing found. |
+| [#194](https://github.com/OpenPRoT/openprot/issues/194) TPM Flash Platform Layer | Nothing found. |
+| [#195](https://github.com/OpenPRoT/openprot/issues/195) TPM Internal NVM integration | Nothing found. |
+| [#196](https://github.com/OpenPRoT/openprot/issues/196) TPM DICE integration | Nothing found. |
+| [#197](https://github.com/OpenPRoT/openprot/issues/197) TPM crypto integration | Nothing found. |
+| [#199](https://github.com/OpenPRoT/openprot/issues/199) TPM integrate PCR measurements | Nothing found. |
+| [#200](https://github.com/OpenPRoT/openprot/issues/200) Integrate TPM compliance testing | Nothing found. |
+
+### 5.5 M3.0 target/earlgrey - First Instruction Integrity
+
+All 14 issues in this milestone are open; none are closed.
+
+This milestone is about trusting the very first instruction Earl Grey's protected firmware runs: verifying it, updating it safely, and keeping track of its state across reboots. Like milestone 3, all the progress found here is on `earlgrey-hwe`, unmerged.
+
+| Issue | Status | Notes |
+|---|---|---|
+| [#205](https://github.com/OpenPRoT/openprot/issues/205) Identify persistent configuration items | Done | The three hardware configuration pins ("soft straps") and their known combinations are defined and covered by a dedicated test. |
+| [#206](https://github.com/OpenPRoT/openprot/issues/206) Identify persistent runtime storage items | Done | The update manager writes firmware to flash using two alternating storage areas ("A/B slots"), and a boot-info test confirms the boot log, strap state and minimum accepted firmware version can all be read back. |
+| [#212](https://github.com/OpenPRoT/openprot/issues/212) Platform integration | Done | The same platform service credited under milestone 3's #190. |
+| [#213](https://github.com/OpenPRoT/openprot/issues/213) Implement event / error logging | Done | A purpose-built structured logging library sends binary, timestamped log events over IPC to a log server for rendering — matches the "machine readable" goal directly. |
+| [#214](https://github.com/OpenPRoT/openprot/issues/214) E2E Integration tests | Done | Real host-plus-target test pairs exist for USB firmware update, the configuration pins, boot info, logging, and the update manager — not just stubs. |
+| [#201](https://github.com/OpenPRoT/openprot/issues/201) drivers/spi_host | Done | Duplicate of milestone 3's #221 — same driver. |
+| [#210](https://github.com/OpenPRoT/openprot/issues/210) Implement payload policy, keys, domains, anti-rollback | Partial | The firmware manifest format (which carries the security version and signature) is parsed, the minimum accepted security version is tracked per boot stage, and separate production/development signing keys exist — but no distinct policy engine for production vs. development vs. test "domains" was found beyond the key sets themselves. |
+| [#211](https://github.com/OpenPRoT/openprot/issues/211) Payload updates via command protocol | Partial | The update mechanics (flashing A/B partitions, writing ownership data) work, but they're driven directly by the USB firmware-update protocol and raw SPI scanning rather than a separate higher-level command protocol layered on top. |
+| [#204](https://github.com/OpenPRoT/openprot/issues/204) Design and implement payload verification | Partial | The manifest format carries signature data and the build-time signing-key infrastructure exists, but no code that actually checks a signature at boot time was found — this likely relies on OpenTitan's existing chip boot ROM rather than reimplementing verification here. |
+| [#209](https://github.com/OpenPRoT/openprot/issues/209) Crypto services | Partial | Shared hardware-abstraction traits for hashing and MAC (message authentication code) operations exist, but they're generic groundwork identical to what's already on `main`, not something built specifically for this milestone. |
+| [#207](https://github.com/OpenPRoT/openprot/issues/207) Investigate FW update protocols | Partial | No written comparison document exists, but Earl Grey has in practice settled on USB firmware update plus SPI flash scanning. A separate, older spec doc argues for a different protocol (PLDM) and appears to predate or ignore that decision. |
+| [#203](https://github.com/OpenPRoT/openprot/issues/203) Design command transport protocol | Partial | USB firmware update is implemented, and the message-transport protocol used elsewhere in the project (MCTP) exists as shared infrastructure, but no "SPI mailbox" protocol was found — the SPI path in use is flash scanning, not a mailbox-style register protocol. |
+| [#202](https://github.com/OpenPRoT/openprot/issues/202) drivers/spi_eeprom | Not started | The branch's own README lists this driver as an explicit, unchecked TODO. |
+| [#208](https://github.com/OpenPRoT/openprot/issues/208) Integrate internal file system | Not started | Only a design doc mentioning Pigweed (the framework the kernel is built on) in general terms exists; no key-value store code was found. |
+
+
+
+## 6. Summary
+
+openPRoT is building a shared, open-source Rust firmware stack for a Platform Root of Trust: a small chip that verifies other devices' firmware and mediates their updates. `main` already has a working core: I2C, MCTP, SPDM and PLDM services, and an orchestrator that sequences boot and updates for the ASPEED AST10x0 target.
+
+The most complete view of that update story, end to end in QEMU, lives on an unmerged stack of demo branches (`ocp-global-demo-wip` and what it contains), built mainly by Christina Quast, JesseMelon and Anthony Rocha. The single largest body of unmerged work, however, is `earlgrey-hwe`: a substantial, largely separate port to OpenTitan's Earl Grey chip (USB, flash, GPIO, update and ownership-transfer logic, logging), led by Chris Frantz, that `main` has drifted 261+ commits away from.
+
+That gap between branches and `main` also explains most of the mismatch between GitHub's milestones and what the repo actually contains: of the 54 open milestone issues, nearly half (23) already have real work behind them, and 15 of those sit entirely on `earlgrey-hwe`. However, gaps still remain in a few specific places: TPM 2.0 support (milestone 4) hasn't been started anywhere, and a handful of specification pages (secure boot, firmware recovery) and security-critical behaviours (real signature verification, a release process, persistent storage for anti-rollback/lockdown state) are still missing or stubbed out across every branch.
+
+
+
 ## Glossary
 
 | Term | Meaning |
@@ -521,3 +646,8 @@ Searches covered `main`, `ocp-global-demo-wip`, `earlgrey-hwe` and `cq-demo-inte
 | QEMU | An emulator, used to run firmware tests without hardware. |
 | EVB | Evaluation board, a development board for a chip. |
 | CI | Continuous integration: automated builds and tests that run on every pull request. |
+| TPM | Trusted Platform Module: an industry-standard security chip interface, separate from openPRoT's own RoT design. |
+| PCR | Platform Configuration Register: a TPM register that records a running tally ("measurement") of what firmware has booted, used for attestation. |
+| DICE | Device Identifier Composition Engine: a method of deriving device identity keys layer by layer through the boot process. |
+| Soft straps | Hardware configuration pins sampled once at boot to decide how the chip should behave (e.g. which mode to start in). |
+| Retention RAM | A small area of memory that keeps its contents across a chip reset, used to carry boot state from one boot to the next. |
