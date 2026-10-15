@@ -29,8 +29,6 @@ There are three target chips:
 
 ## Getting started
 
-**Disclaimer / TODO:** I still need to verify and debug / add extra instructions for this section
-
 The build is Bazel-only (bazelisk is recommended, and Bazel fetches all other dependencies). From the repo root:
 
 - `bazel test //...` runs all host tests.
@@ -40,8 +38,8 @@ The build is Bazel-only (bazelisk is recommended, and Bazel fetches all other de
 **Example: building and testing the AST10x0 firmware** (from `target/ast10x0/README.md`):
 
 ```console
-bazel build //target/ast10x0/...                          # build all AST10x0 images and tests
-bazel test --config=virt_ast10x0 //target/ast10x0/...     # run the tests under QEMU
+bazelisk build //target/ast10x0/...                          # build all AST10x0 images and tests
+bazelisk test --config=virt_ast10x0 //target/ast10x0/...     # run the tests under QEMU
 ```
 
 Without `--config=virt_ast10x0`, the firmware tests are built but not run. Running on real boards needs a runner to be set up: see `target/ast10x0/BOARDS.md` and `target/ast10x0/tests/README.md`.
@@ -49,12 +47,12 @@ Without `--config=virt_ast10x0`, the firmware tests are built but not run. Runni
 **Example: Earl Grey** (from `target/earlgrey/README.md`):
 
 ```console
-bazelisk build //target/earlgrey/ipc/user:ipc
+bazelisk build //target/earlgrey/tests/ipc/user:ipc
 bazelisk test //target/earlgrey/tests/ipc/user:ipc_runner_qemu_test    # run under QEMU
 ```
+(`targets/earlgrey/README.md` ommitted `/tests/` for the first command. Also, if on NixOS, make sure to point bazel to you bash shell, either in `.bazelrc-site` or in your system `configuration.nix`, and that the necessary QEMU depdendencies [e.g. glib, zlib] are installed and exposed for dynamic linking via `programs.nix-ld.libraries`).
 
 The README also lists runners for the CW310 and CW340 FPGA boards and for Verilator.
-
 More commands (single targets, tag filters for hardware tests) are in `docs/src/usage.md`.
 
 ## Where things stand
@@ -65,7 +63,7 @@ More commands (single targets, tag filters for hardware tests) are in `docs/src/
 - The orchestrator state machine, with a large test suite. It can verify firmware, release devices from reset in order, and enforce an anti-rollback version floor.
 - AST10x0 drivers for I2C, flash controllers, the SPI monitor, GPIO, the hardware crypto engine, OTP memory and UART.
 
-**OIn unmerged branches:**
+**In unmerged branches:**
 
 - **A full firmware update in QEMU** (`ocp-global-demo-wip`). An update arrives over PLDM and is written to flash and checked. The device is then restarted on the new image, and only after it boots successfully is the anti-rollback floor raised. There are 11 integration tests covering the normal path and failure cases such as a corrupt image, a hung device and a cancelled transfer.
 - **The same update on real hardware** (`ocp-global-demo`). Two boards driven from a Raspberry Pi: the RoT updates a stand-in management chip (a "mock BMC") through shared flash, resets it, and the mock BMC boots the new image.
